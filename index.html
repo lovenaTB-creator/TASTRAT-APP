@@ -460,12 +460,12 @@ h1,h2,h3,.display { font-family: 'Cormorant Garamond', serif; }
     <div class="login-sub">Stratégie Visuelle & Marketing</div>
     <p style="font-size:13px;color:var(--text-secondary);margin-bottom:20px">Choisissez votre profil</p>
     <div class="user-select">
-      <div class="user-btn" onclick="selectUser('lovena')" id="btn-lovena">
+      <div class="user-btn" onclick="state.user='lovena';login()" id="btn-lovena">
         <div class="user-btn-avatar av-l" style="background:var(--gold);color:var(--brown-dark)">L</div>
         <div class="user-btn-name">Lovena</div>
         <div class="user-btn-role">Stratégie & Ateliers</div>
       </div>
-      <div class="user-btn" onclick="selectUser('tattyana')" id="btn-tattyana">
+      <div class="user-btn" onclick="state.user='tattyana';login()" id="btn-tattyana">
         <div class="user-btn-avatar av-t" style="background:var(--cream);color:var(--brown-mid)">T</div>
         <div class="user-btn-name">Tattyana</div>
         <div class="user-btn-role">Design & Audit</div>
