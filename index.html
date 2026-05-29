@@ -486,9 +486,9 @@ function renderAll() {
 // ─── DASHBOARD ───
 function renderDashboard() {
   var active = state.projects.filter(p=>p.status!=='done').length;
-  var ca = state.projects.reduce((s,p)=>s+(p.montant||0),0);
+  var ca = state.prospects.filter(p=>p.etape==='Signé ✅').reduce((s,p)=>s+(p.montant||0),0);
   var urg = state.tasks.filter(t=>!t.done&&t.priority==='urgente').length;
-  var hot = state.prospects.filter(p=>p.etape==='RDV fixé'||p.etape==='RDV réalisé').length;
+  var hot = state.prospects.filter(p=>p.etape==='RDV fixé'||p.etape==='RDV réalisé'||p.etape==='Proposition envoyée').length;
   document.getElementById('dash-stats').innerHTML =
     '<div class="scard"><div class="slabel">Projets actifs</div><div class="sval">'+active+'</div><div class="ssub">'+state.projects.length+' total</div></div>'+
     '<div class="scard go"><div class="slabel">CA signé</div><div class="sval">'+ca.toLocaleString('fr-FR')+'€</div><div class="ssub">Ce mois</div></div>'+
@@ -509,7 +509,10 @@ function renderDashboard() {
   var mt = state.tasks.filter(t=>!t.done&&t.assignee===currentUser).slice(0,5);
   document.getElementById('dash-tasks').innerHTML = mt.length ? mt.map(taskRow).join('') : '<div class="empty"><div class="emico">✓</div><p>Aucune tâche</p></div>';
 
-  document.getElementById('dash-obj').innerHTML = state.objectifs.slice(0,2).map(function(o){
+  // Auto-update CA objectif from signed prospects
+var caAuto = state.prospects.filter(p=>p.etape==='Signé ✅').reduce((s,p)=>s+(p.montant||0),0);
+state.objectifs.forEach(function(o){ if(o.isCA) o.current = caAuto; });
+document.getElementById('dash-obj').innerHTML = state.objectifs.slice(0,2).map(function(o){
     var pct = Math.min(100,Math.round(((o.current||0)/(o.target||1))*100));
     return '<div class="oitem"><div class="ohead"><span class="oname">'+o.name+'</span><span class="oval" style="color:#bf5700">'+(o.current||0).toLocaleString()+' / '+(o.target||0).toLocaleString()+' '+(o.unit||'')+'</span></div><div class="prog"><div class="pf pf-or" style="width:'+pct+'%"></div></div></div>';
   }).join('') || '<p style="font-size:12px;color:#b09070">Aucun objectif défini</p>';
@@ -579,6 +582,9 @@ function renderTasks() {
 // ─── OBJECTIFS ───
 function renderObjectifs() {
   var el = document.getElementById('obj-list'); if(!el) return;
+  // Auto-sync CA objectif
+  var caAuto = state.prospects.filter(p=>p.etape==='Signé ✅').reduce((s,p)=>s+(p.montant||0),0);
+  state.objectifs.forEach(function(o){ if(o.isCA) o.current = caAuto; });
   el.innerHTML = '<div class="ctitle" style="margin-bottom:12px">◎ Objectifs en cours</div>'+(state.objectifs.length?state.objectifs.map(function(o){
     var pct=Math.min(100,Math.round(((o.current||0)/(o.target||1))*100));
     return '<div class="oitem"><div class="ohead"><span class="oname">'+o.name+'</span><div style="display:flex;align-items:center;gap:6px"><span class="oval" style="color:#bf5700">'+(o.current||0).toLocaleString()+' / '+(o.target||0).toLocaleString()+' '+(o.unit||'')+'</span><button class="btn btn-g btn-sm" data-id="'+o.id+'" data-type="edit-obj">✏</button><button class="btn btn-d btn-sm" data-id="'+o.id+'" data-type="del-obj">🗑</button></div></div><div class="prog" style="height:7px"><div class="pf pf-or" style="width:'+pct+'%"></div></div><div style="font-size:11px;color:#b09070;margin-top:3px">'+pct+'% atteint · Échéance '+fmtDate(o.deadline)+'</div></div>';
@@ -587,7 +593,7 @@ function renderObjectifs() {
   var s = document.getElementById('obj-summary'); if(!s) return;
   var done=state.projects.filter(p=>p.status==='done').length;
   var doneT=state.tasks.filter(t=>t.done).length;
-  var caT=state.projects.reduce((s,p)=>s+(p.montant||0),0);
+  var caT=state.prospects.filter(p=>p.etape==='Signé ✅').reduce((s,p)=>s+(p.montant||0),0);
   s.innerHTML='<div class="trow"><div class="tdot td-u"></div><span class="ttext">Projets terminés</span><span class="tdue">'+done+'</span></div>'+
     '<div class="trow"><div class="tdot td-n"></div><span class="ttext">Tâches complétées</span><span class="tdue">'+doneT+'</span></div>'+
     '<div class="trow"><div class="tdot td-d"></div><span class="ttext">CA total signé</span><span class="tdue">'+caT.toLocaleString('fr-FR')+'€</span></div>'+
@@ -685,6 +691,7 @@ function modalObj(o) {
   var isEdit=!!o; var d=o||{};
   return '<div class="mhead"><span class="mtitle">'+(isEdit?'Modifier objectif':'Nouvel objectif')+'</span><button class="mclose" data-type="close-modal">✕</button></div>'+
     '<div class="fg"><label class="fl">Nom de l\'objectif</label><input class="fi" id="f-name" value="'+(d.name||'')+'" placeholder="Ex: CA mensuel, Nouveaux clients..."></div>'+
+    '<div class="fg" style="background:#fff8e6;padding:10px;border-radius:8px;border:1px solid #d1ab2d"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px"><input type="checkbox" id="f-isca" '+(d.isCA?'checked':'')+' style="cursor:pointer"> <span>📊 Lier automatiquement au CA des prospects signés</span></label></div>'+
     '<div class="frow"><div class="fg"><label class="fl">Valeur actuelle</label><input class="fi" id="f-current" type="number" value="'+(d.current||0)+'"></div><div class="fg"><label class="fl">Objectif cible</label><input class="fi" id="f-target" type="number" value="'+(d.target||'')+'" placeholder="6000"></div></div>'+
     '<div class="frow"><div class="fg"><label class="fl">Unité</label><input class="fi" id="f-unit" value="'+(d.unit||'')+'" placeholder="€, clients, projets..."></div><div class="fg"><label class="fl">Échéance</label><input class="fi" id="f-deadline" type="date" value="'+(d.deadline||'')+'"></div></div>'+
     '<div class="mfoot">'+
@@ -745,7 +752,8 @@ function saveTask(id) {
   closeModal();
 }
 function saveObj(id) {
-  var data={name:document.getElementById('f-name').value,current:+document.getElementById('f-current').value||0,target:+document.getElementById('f-target').value||0,unit:document.getElementById('f-unit').value,deadline:document.getElementById('f-deadline').value};
+  var isCA = document.getElementById('f-isca') ? document.getElementById('f-isca').checked : false;
+  var data={name:document.getElementById('f-name').value,current:+document.getElementById('f-current').value||0,target:+document.getElementById('f-target').value||0,unit:document.getElementById('f-unit').value,deadline:document.getElementById('f-deadline').value,isCA:isCA};
   if(id){updDoc('objectifs',id,data);}else{addDoc('objectifs',data);}
   closeModal();
 }
